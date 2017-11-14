@@ -5,7 +5,10 @@ import sys
 import csv
 from sklearn.model_selection import train_test_split
 
-def data_generator(csv_dataframe, img_dir_path, batch_size,validation = True):
+def data_generator(csv_dataframe, img_dir_path, batch_size,
+        left_steer_bias = 0.2,
+        right_steer_bias = 0.1,
+        validation = False):
 
     while True: 
         #parse the row for image file name and steering angle
@@ -23,7 +26,27 @@ def data_generator(csv_dataframe, img_dir_path, batch_size,validation = True):
             steer_angle = row[4]
 
             X_train.append(img)
-            y_train.append(steer_angle) 
+            y_train.append(steer_angle)
+            
+            if not validation:
+                temp_img = cv2.flip(img,flipCode=1)
+                X_train.append(temp_img)
+                y_train.append(-1*steer_angle)
+
+                img_name = row[2].split('/')[-1]
+                img = cv2.imread(img_dir_path+"/"+img_name)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                
+                X_train.append(img)
+                y_train.append(steer_angle-(left_steer_bias*steer_angle))
+                
+                img_name = row[3].split('/')[-1]
+                img = cv2.imread(img_dir_path+"/"+img_name)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                
+                X_train.append(img)
+                y_train.append(steer_angle + (right_steer_bias*steer_angle))
+
             count +=1
             
             if count == batch_size:
@@ -34,8 +57,8 @@ def data_generator(csv_dataframe, img_dir_path, batch_size,validation = True):
 
     
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Flatten,Lambda
-from keras.layers.convolutional import Convolution2D
+from keras.layers.core import Dense, Activation, Flatten,Lambda, Dropout
+from keras.layers.convolutional import Convolution2D,Cropping2D
 from keras.layers.pooling import MaxPooling2D
 
 
@@ -56,9 +79,12 @@ def build_lenet_model(img_size=(160,320,3)):
 
     lenet_model = Sequential()
     lenet_model.add(Lambda(lambda x:x/255. - 0.5 , input_shape=img_size))
+    lenet_model.add(Cropping2D(cropping=((50,20),(0,0))))    
     lenet_model.add(Convolution2D(6,(5,5),padding = 'valid',activation='relu'))
+    lenet_model.add(Dropout(rate = 0.4))
     lenet_model.add(MaxPooling2D())
     lenet_model.add(Convolution2D(16,(5,5),padding='valid',activation='relu'))
+    lenet_model.add(Dropout(rate = 0.4))
     lenet_model.add(MaxPooling2D())
     lenet_model.add(Flatten())
     lenet_model.add(Dense(128))
@@ -67,6 +93,24 @@ def build_lenet_model(img_size=(160,320,3)):
     lenet_model.compile(loss ='mse', optimizer='adam')
 
     return lenet_model
+
+def build_nvidia_model(img_size=(160,320,3)):
+    #W_out = [(W-F+2P)/2S]+1
+    #H_out = [(H-F +2P)/2S]+1
+
+    nvidia_model = Sequential()
+    nvidia_model.add(Cropping2D(cropping =((65,20),(0,0))))
+    nvidia_model.add(Convolution2D(24,(5,5),stride=(2,2),activation='relu'))
+    nvidia_model.add(Convolution2D(36,(5,5),stride=(2,2),activation='relu'))
+    nvidia_model.add(Convolution2D(48,(5,5),stride=(2,2),activation='relu'))
+    nvidia_model.add(Convolution2D(64,(3,3),activation='relu'))
+    nvidia_model.add(Convolution2D(64,(3,3),activation='relu'))
+    nvidia_model.add(Flatten())
+    nvidia_model.add(Dense(100))
+    nvidia_model.add(Dense(50))
+    nvidia_model.add(Dense(10))
+    nvidia_model.add(Dense(1))
+    return nvidia_model
 
 def train_to_overfit_model(model,train_img_df,
         train_img_dir,data_size=3,
@@ -131,7 +175,7 @@ def test_model(model,test_img_df,test_img_dir,data_size=3):
     print('actual: ',y_test)
 
 def load_data(log_file_path,test_ratio = 0.3):
-    csv_data = pd.read_csv(log_file_path)
+    csv_data = pd.read_csv(log_file_path,header=None)
     y_dummy_data = csv_data.iloc[:, 0]
     X_train, X_valid, y_train, y_valid = train_test_split(csv_data, y_dummy_data, test_size = test_ratio)
 
@@ -141,23 +185,28 @@ def load_data(log_file_path,test_ratio = 0.3):
 def behavioral_cloning_pipeline(log_file_path, img_dir_path):
     print ('log file path: ', log_file_path)
     print('img dir path: ', img_dir_path)
-    X_train, y_train, X_valid, y_valid = load_data(log_file_path,test_ratio = 0.0)
+    X_train, y_train, X_valid, y_valid = load_data(log_file_path,test_ratio = 0.3)
     print('x train shape', X_train.shape)
     print('x valid shape', X_valid.shape)
-    batch_size = 10
+    batch_size = 100
     train_data_generator = data_generator(X_train, img_dir_path, 
-            batch_size=batch_size, validation = False)
+            batch_size=batch_size, 
+            left_steer_bias = 0.3,
+            right_steer_bias = 0.1, 
+            validation = False)
     valid_data_generator = data_generator(X_valid, img_dir_path, 
             batch_size = batch_size, validation = True)
 
     #model = build_model()
     model = build_lenet_model(img_size=(160,320,3))
-    #model = train_model(model,train_data_generator,valid_data_generator,
-    #        train_steps_per_epoch=3,valid_steps_per_epoch=1)
+    model = train_model(model,train_data_generator,valid_data_generator,
+            train_steps_per_epoch=int(X_train.shape[0]/batch_size),valid_steps_per_epoch=int(X_valid.shape[0]/batch_size))
     
-    model = train_to_overfit_model(model, X_train,
-            img_dir_path,data_size=3,n_epochs=5)
-    test_model(model,test_data_df,img_dir_path)
+    #model = train_to_overfit_model(model, X_train,
+    #        img_dir_path,data_size=3,n_epochs=5)
+    test_data_df = X_train.iloc[:11,:]
+    test_model(model,test_data_df,img_dir_path, data_size=10)
+    model.save('model.h5')
 
 
 def test_pipeline(log_file_path, img_dir_path):
@@ -175,8 +224,8 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print ("usage python model.py <path to log file> <path to image files>") 
         exit()
-    test_pipeline(sys.argv[1],sys.argv[2])
-    #behavioral_cloning_pipeline(sys.argv[1],sys.argv[2])
+    #test_pipeline(sys.argv[1],sys.argv[2])
+    behavioral_cloning_pipeline(sys.argv[1],sys.argv[2])
 
 
 
