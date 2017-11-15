@@ -99,10 +99,11 @@ def build_nvidia_model(img_size=(160,320,3)):
     #H_out = [(H-F +2P)/2S]+1
 
     nvidia_model = Sequential()
+    nvidia_model.add(Lambda(lambda x:x/255. - 0.5 , input_shape=img_size))
     nvidia_model.add(Cropping2D(cropping =((65,20),(0,0))))
-    nvidia_model.add(Convolution2D(24,(5,5),stride=(2,2),activation='relu'))
-    nvidia_model.add(Convolution2D(36,(5,5),stride=(2,2),activation='relu'))
-    nvidia_model.add(Convolution2D(48,(5,5),stride=(2,2),activation='relu'))
+    nvidia_model.add(Convolution2D(24,(5,5),strides=(2,2),activation='relu'))
+    nvidia_model.add(Convolution2D(36,(5,5),strides=(2,2),activation='relu'))
+    nvidia_model.add(Convolution2D(48,(5,5),strides=(2,2),activation='relu'))
     nvidia_model.add(Convolution2D(64,(3,3),activation='relu'))
     nvidia_model.add(Convolution2D(64,(3,3),activation='relu'))
     nvidia_model.add(Flatten())
@@ -110,6 +111,7 @@ def build_nvidia_model(img_size=(160,320,3)):
     nvidia_model.add(Dense(50))
     nvidia_model.add(Dense(10))
     nvidia_model.add(Dense(1))
+    nvidia_model.compile(loss='mse', optimizer='adam')
     return nvidia_model
 
 def train_to_overfit_model(model,train_img_df,
@@ -142,7 +144,7 @@ def train_model(model, train_batch_generator,
     
     model.fit_generator(train_batch_generator,
             steps_per_epoch=train_steps_per_epoch,
-            epochs=5,verbose = 1,
+            epochs=num_epochs,verbose = 1,
             validation_data=valid_data_generator,
             validation_steps=valid_steps_per_epoch,
             shuffle=True)
@@ -191,21 +193,27 @@ def behavioral_cloning_pipeline(log_file_path, img_dir_path):
     batch_size = 100
     train_data_generator = data_generator(X_train, img_dir_path, 
             batch_size=batch_size, 
-            left_steer_bias = 0.3,
-            right_steer_bias = 0.1, 
+            left_steer_bias = 0.1,
+            right_steer_bias = 0.5, 
             validation = False)
     valid_data_generator = data_generator(X_valid, img_dir_path, 
             batch_size = batch_size, validation = True)
 
     #model = build_model()
-    model = build_lenet_model(img_size=(160,320,3))
+    #model = build_lenet_model(img_size=(160,320,3))
+    model = build_nvidia_model(img_size=(160,320,3))
     model = train_model(model,train_data_generator,valid_data_generator,
-            train_steps_per_epoch=int(X_train.shape[0]/batch_size),valid_steps_per_epoch=int(X_valid.shape[0]/batch_size))
-    
+            train_steps_per_epoch=int(X_train.shape[0]/batch_size),
+            valid_steps_per_epoch=int(X_valid.shape[0]/batch_size), num_epochs=3)
+   
+
+    #model = train_model(model,train_data_generator,None,
+    #                                  train_steps_per_epoch=int(X_train.shape[0]/batch_size),
+    #                                  valid_steps_per_epoch=None, num_epochs=10)
     #model = train_to_overfit_model(model, X_train,
     #        img_dir_path,data_size=3,n_epochs=5)
-    test_data_df = X_train.iloc[:11,:]
-    test_model(model,test_data_df,img_dir_path, data_size=10)
+    #test_data_df = X_train.iloc[:11,:]
+    #test_model(model,test_data_df,img_dir_path, data_size=10)
     model.save('model.h5')
 
 
