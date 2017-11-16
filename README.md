@@ -72,9 +72,20 @@ The final model used to succesfully complete an autonomous lap on Track 1 is cal
 A video of the autonomous drive is available [here](output_video/output_video_lap1.mp4) 
 
 
+### Challenge Track
 
+* I was able to train a  model for the challenge track too. It is called `model_lap2.h5` and available [here](model_lap2.h5)
+* The model  was trained exclusively on challenge track data
+* The model is able to drive the car around the whole track autonomously. It struggles wherever there are lighting changes and lets the car go too close to the edge.
+* To improve performance, some more good training data and parameter tuning during training is still needed to make the behavior more safe and keep the car away from edge of the hilly roads. A video is available [here](output_video/output_video_lap2.mp4)
 
+### Further Possible Exploration
 
+1. Train a a generic model that can drive both tracks 
+2. Explore comma_ai's model
+3. Explore results of internediate feature maps and visualizations of learning parameters - train and validation losses
+4. Use the simulator to predict/control other parameters like host vehicle speed, road curvatures etc
+5. Sub-sample input image to reduce computation cost
 
 
 
