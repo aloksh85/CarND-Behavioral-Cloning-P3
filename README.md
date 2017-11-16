@@ -60,15 +60,18 @@ I made sure I included some recovery style driving while driving these training 
 
 During training, I wrote a generator method called `data_generator` which loads images in batches of 100. The simulator gives images captured from three angles: center, left and right of car along with a steering angle. I augmented the training data as below:
 1. Add a flipped image for each training image from center camera
-2. Add left camera image along with a angle caluclatyed as `steering_angle - (left_bias*steering_angle)`
-2. Add right camera image along with a angle caluclatyed as `steering_angle + (right_bias*steering_angle)`
+2. Add left camera image along with a angle calculated as `steering_angle - (left_bias*steering_angle)`
+2. Add right camera image along with a angle calculated as `steering_angle + (right_bias*steering_angle)`
 
 Images of training images are shown below
+
 ![Image Center](examples/center1.jpg) ![Image Center](examples/left1.jpg)![Image Center](examples/right1.jpg)
 
 
 The final model used to succesfully complete an autonomous lap on Track 1 is called `model_lap1.h5` and available [here](model_lap1.h5) 
 A video of the autonomous drive is available [here](output_video/output_video_lap1.mp4) 
+
+
 
 
 
