@@ -68,8 +68,8 @@ Images of training images are shown below
 ![Image Center](examples/center1.jpg) ![Image Center](examples/left1.jpg)![Image Center](examples/right1.jpg)
 
 
-The final model used to succesfully complete an autonomous lap on Track 1 is called `model_lap1.h5` and available [here](model_lap1.h5) 
-A video of the autonomous drive is available [here](output_video/output_video_lap1.mp4) 
+* The final model used to succesfully complete an autonomous lap on Track 1 is called `model_lap1.h5` and available [here](model_lap1.h5)
+* A video of the autonomous drive is available [here](output_video/output_video_lap1.mp4) 
 
 
 
